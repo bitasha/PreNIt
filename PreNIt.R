@@ -161,275 +161,10 @@ rankEvaluation_Yu_PReNIt<-function(rmat,userSeq,rl=c(1,3,5,10),trl,direc,firstRu
   return(evt)
 }
 library(igraph)
-pathrank<-function(trans,id,nr,nc){
-  trans=t(trans)
-  rank=rep(1,nrow(trans))
-  rank=rank/sum(rank)
-  rank=matrix(rank,length(rank),1);
-  p=matrix(0,length(rank),1);
-  p[id]=1
-  for(i in 1:20){
-    rank=0.85*trans%*%matrix(rank,length(rank),1)+0.15*p;
-    #rank=(0.85*(crossprod(t(trans),rank)));
-    #rank[id,1]=rank[id,1]+0.15;
-    #rank=rank/sum(rank);
-    #rank=rank+(1-sum(rank))/length(rank);
-    rank[id,1]=rank[id,1]+(1-sum(rank));
-  }
-  l=rank[(length(rank)-2*nc+1):length(rank)]
-  v=l[seq(from=1,to=length(l),by=2)]
-  v2=l[seq(from=2,to=length(l),by=2)]
-  v=v-v2;
-  #v=v/(v+v2);
-  return(v);
-}
 
-make3LGraph_2<-function(rmat,us,testSet,tr,perc=1){
-  print("constructing graph")
-  #l=matrix(0,ncol(rmat)^2+nrow(rmat),ncol(rmat)^2+nrow(rmat));
-  l=rep(0,2);
-  count=1
-  countp=0;
-  t2=matrix(0,5000,2);
-  t3=rep(0,2);
-  
-  for(i in 1:nrow(rmat)){
-    uid=i;
-    print(uid)
-    if(any(testSet==i)){
-      r=(tr[[which(testSet==i)]]);
-    }
-    else{
-      r=which(!is.na(rmat[uid,]));
-    }    
-    s=splitRating(rmat,uid,r);
-    m=0;
-    if(length(s)>1){
-      for( uu in 1:(length(s)-1))
-        for(hh in (uu+1):(length(s)))
-          m=m+length(s[[hh]])*length(s[[uu]]);
-        t2=matrix(0,m,2)
-        if((countp%%10000)==0)
-          print(i)
-        for(j in 1:(length(s)-1)){
-          for(k in ((j+1):length(s))){
-            if(length(s[[j]])>0&&length(s[[k]])>0){
-              t=tList(i,s[[j]],s[[k]],rmat)
-              countp=countp+nrow(t);
-              tl=count+nrow(t)-1;
-              t2[count:tl,]=t;
-              count=count+nrow(t);
-              
-            }
-          }
-        }    
-        
-        t3=rbind(t3,t2);   
-    }
-    count=1;
-  }
-  if(countp>0){
-    print(c(dim(l),dim(t3),dim(t3[-1,])))
-    l=rbind(l,t3[-1,]);
-  }
-  print("L3")
-  l=l[-1,]
-  st=nrow(rmat)+1;
-  end=nrow(rmat)+ncol(rmat)*ncol(rmat);
-  u=matrix(0,2*ncol(rmat)*ncol(rmat),2)
-  rc=1;
-  per=sample(1:nrow(l),floor(perc*nrow(l)))
-  l=l[per,]  
-  for(k in st:end){
-    q=rep(0,2);
-    t=ceiling((k-st+1)/ncol(rmat)); #node barande
-    t2=(k-st+1)%% ncol(rmat);#node bazande    
-    if(t2==0){
-      t2=ncol(rmat);
-    }
-    q=rbind(q,c(k,end+2*t-1));
-    q=rbind(q,c(k,end+2*t2));    
-    u[rc:(rc+1),]=q[-1,];
-    rc=rc+2
-  }
-  print("graph is constructed")
-  l=rbind(l,u)
-  return(l);
-}
-ppr<-function(g, personalized=rep(1/vcount(g),vcount(g)),damping=0.85){
-  personalized=personalized/sum(personalized)
-  r=(get.adjacency(g));
-  e=(drop0(r))
-  p=colSums(e);
-  e=crossprod(r,solve(Diagonal(x=p)))
-  m=personalized
-  m=m/sum(m)
-  m=matrix(m,length(m),1)
-  er=rep(0,100)
-  l=which(personalized!=0)
-  for(i in 1:20){  
-    m2=damping*(e%*%m)+(1-damping)*personalized;
-    er[i]=sum((m-m2)^2);
-    m=m2
-    if(er[i]<0.000001)
-      break;
-  }
-  return(m)
-}
-#U-REGRank
-transformMatrix2_normallAll<-function(g,nr,nc){
-  # p=array(list(),length(w)),
-  UInd=1:nr;
-  PInd=(nr+1):(vcount(g)-2*nc);
-  RInd=(vcount(g)-2*nc+1):vcount(g)
-  r=get.adjacency(g)
-  r=drop0(r);
-  rup_1=r[UInd,PInd]
-  rpr_1=r[PInd,RInd]
-  rAll=t(crossprod((r),solve(Diagonal(x=colSums(r)))))
-  rpu=rAll[PInd,UInd]
-  rup=rAll[UInd,PInd]
-  rpr=rAll[PInd,RInd]
-  rrp=rAll[RInd,PInd]
-  
-  
-  #rpu=t(crossprod(t(rup_1),solve(Diagonal(x=colSums(r[PInd,])))))
-  #rup=t(crossprod((rup_1),solve(Diagonal(x=colSums(t(rup_1))))))
-  #rpr=t(crossprod((rpr_1),solve(Diagonal(x=colSums((r[PInd,]))))))
-  #rrp=t(crossprod(t(rpr_1),solve(Diagonal(x=colSums((rpr_1))))))
-  
-  print("h")
-  mp1=rup%*%rpu;
-  mp2=rrp%*%rpu;
-  mp3=rup%*%rpr;
-  print("m")
-  smp1=summary(mp1)
-  tm1=sparseMatrix(i=smp1[,1],j=smp1[,2],x=smp1[,3],dims=c(vcount(g),vcount(g)))
-  smp2=summary(mp2)
-  tm2=sparseMatrix(i=RInd[smp2[,1]],j=smp2[,2],x=smp2[,3],dims=c(vcount(g),vcount(g)))
-  smp3=summary(mp3)
-  tm3=sparseMatrix(i=smp3[,1],j=RInd[smp3[,2]],x=smp3[,3],dims=c(vcount(g),vcount(g)))
-  #trans=0.5*tm1+tm2+0.5*tm3
-  trans=tm1+tm2+tm3;
-  trans=trans[-((nr+1):(ncol(trans)-2*nc)),-((nr+1):(ncol(trans)-2*nc))]
-  ss=rowSums(trans)
-  print("XXXXX")
-  # for(i in 1:nrow(trans))
-  #   trans[i,]=trans[i,]/ss[i]
-  gc(T)
-  v1 <- rowSums(trans)
-  trans=as(trans,"matrix")
-  trans=prop.table(trans,1)
-  print("yyy")
-  # for(k in 1:nrow(trans)){
-  #   print(k)
-  #   trans[k,] <- trans[k,]/v1[k]
-  # }
-  #trans=sweep(trans,1,rowSums(trans),FUN ="/")
-  
-  #trans=t(crossprod(t(trans),solve(Diagonal(x=colSums(trans)))))
-  x="*"
-  return(environment())
-}
-
-
-#P_ReGRank
-transformMatrix4_normallAll<-function(g,nr,nc){
-  # p=array(list(),length(w)),
-  UInd=1:nr;
-  PInd=(nr+1):(vcount(g)-2*nc);
-  RInd=(vcount(g)-2*nc+1):vcount(g)
-  r=get.adjacency(g)
-  r=drop0(r);
-  rup_1=r[UInd,PInd]
-  rpr_1=r[PInd,RInd]
-  rAll=t(crossprod((r),solve(Diagonal(x=colSums(r)))))
-  rpu=rAll[PInd,UInd]
-  rup=rAll[UInd,PInd]
-  rpr=rAll[PInd,RInd]
-  rrp=rAll[RInd,PInd]
-  
-  
-  #rpu=t(crossprod(t(rup_1),solve(Diagonal(x=colSums(r[PInd,])))))
-  #rup=t(crossprod((rup_1),solve(Diagonal(x=colSums(t(rup_1))))))
-  #rpr=t(crossprod((rpr_1),solve(Diagonal(x=colSums((r[PInd,]))))))
-  #rrp=t(crossprod(t(rpr_1),solve(Diagonal(x=colSums((rpr_1))))))
-  
-  
-  mp1=rup%*%rpu;
-  mp2=rrp%*%rpu;
-  mp3=rup%*%rpr;
-  smp1=summary(mp1)
-  tm1=sparseMatrix(i=smp1[,1],j=smp1[,2],x=smp1[,3],dims=c(vcount(g),vcount(g)))
-  smp2=summary(mp2)
-  tm2=sparseMatrix(i=RInd[smp2[,1]],j=smp2[,2],x=smp2[,3],dims=c(vcount(g),vcount(g)))
-  smp3=summary(mp3)
-  tm3=sparseMatrix(i=smp3[,1],j=RInd[smp3[,2]],x=smp3[,3],dims=c(vcount(g),vcount(g)))
-  #trans=0.5*tm1+tm2+0.5*tm3
-  trans=tm1+tm3;
-  trans=trans[-((nr+1):(ncol(trans)-2*nc)),-((nr+1):(ncol(trans)-2*nc))]
-  ss=rowSums(trans)
-  # for(i in 1:nrow(trans))
-  #   trans[i,]=trans[i,]/ss[i]
-  #trans=sweep(trans,1,rowSums(trans),FUN ="/")
-  #v1 <- rowSums(trans)
-  #trans <- trans/(v1)
-  trans=as(trans,"matrix")
-  trans=prop.table(trans,1)
-  #trans=t(crossprod(t(trans),solve(Diagonal(x=colSums(trans)))))
-  x="*"
-  return(environment())
-}
-
-
-#R-REGRank
-transformMatrix6_normallAll<-function(g,nr,nc){
-  # p=array(list(),length(w)),
-  UInd=1:nr;
-  PInd=(nr+1):(vcount(g)-2*nc);
-  RInd=(vcount(g)-2*nc+1):vcount(g)
-  r=get.adjacency(g)
-  r=drop0(r);
-  rup_1=r[UInd,PInd]
-  rpr_1=r[PInd,RInd]
-  rAll=t(crossprod((r),solve(Diagonal(x=colSums(r)))))
-  rpu=rAll[PInd,UInd]
-  rup=rAll[UInd,PInd]
-  rpr=rAll[PInd,RInd]
-  rrp=rAll[RInd,PInd]
-  
-  
-  #rpu=t(crossprod(t(rup_1),solve(Diagonal(x=colSums(r[PInd,])))))
-  #rup=t(crossprod((rup_1),solve(Diagonal(x=colSums(t(rup_1))))))
-  #rpr=t(crossprod((rpr_1),solve(Diagonal(x=colSums((r[PInd,]))))))
-  #rrp=t(crossprod(t(rpr_1),solve(Diagonal(x=colSums((rpr_1))))))
-  
-  
-  mp1=rup%*%rpu;
-  mp2=rrp%*%rpu;
-  mp3=rup%*%rpr;
-  smp1=summary(mp1)
-  tm1=sparseMatrix(i=smp1[,1],j=smp1[,2],x=smp1[,3],dims=c(vcount(g),vcount(g)))
-  smp2=summary(mp2)
-  tm2=sparseMatrix(i=RInd[smp2[,1]],j=smp2[,2],x=smp2[,3],dims=c(vcount(g),vcount(g)))
-  smp3=summary(mp3)
-  tm3=sparseMatrix(i=smp3[,1],j=RInd[smp3[,2]],x=smp3[,3],dims=c(vcount(g),vcount(g)))
-  #trans=0.5*tm1+tm2+0.5*tm3
-  trans=tm2+tm3;
-  trans=trans[-((nr+1):(ncol(trans)-2*nc)),-((nr+1):(ncol(trans)-2*nc))]
-  ss=rowSums(trans)
-  # for(i in 1:nrow(trans))
-  #   trans[i,]=trans[i,]/ss[i]
-  # trans=sweep(trans,1,rowSums(trans),FUN ="/")
-  #v1 <- rowSums(trans)
-  #trans <- trans/(v1)
-  trans=as(trans,"matrix")
-  trans=prop.table(trans,1)
-  #trans=t(crossprod(t(trans),solve(Diagonal(x=colSums(trans)))))
-  x="*"
-  return(environment())
-}
-
+#This function return the graph that connect users to their winning items (i.e. WNet)
+   #tr: is the array list in which i-th element contains the pairwise preference matrix of i-th user
+   # ic: the number of column in rating matrix (i.e. the total number of items)
 make2LGraph_choiceContexGeneral_Ricci2_itembased_winner<-function(tr,ic) {
   print("constructing graph")
   l = rep(0, 2)
@@ -485,6 +220,12 @@ make2LGraph_choiceContexGeneral_Ricci2_itembased_winner<-function(tr,ic) {
   #l=unique(t3[,1:4])
   return(l);
 }
+                  
+#This function return the graph that connect users to their losing items (i.e. LNet)
+   #tr: is the array list in which i-th element contains the pairwise preference matrix of i-th user
+   # ic: the number of column in rating matrix (i.e. the total number of items)
+ #Note that LNet is constructed in the reforemed shape that is compatible with MemoRank (i.e. Preposition 1 in the paper)
+
 make2LGraph_choiceContexGeneral_Ricci2_itembased_looser<-function(tr,ic) {
   print("constructing graph")
   l = rep(0, 2)
@@ -540,6 +281,12 @@ make2LGraph_choiceContexGeneral_Ricci2_itembased_looser<-function(tr,ic) {
   #l=unique(t3[,1:4])
   return(l);
 }
+ #This fuction scores items based on their weighted similaity to the winning items of the target user
+  #g: reformed shape of WNet constructed by the abov functions 
+  #uid: the id of the target user
+  #wi: the list of winning side of items in the reformed WNet graph
+  #Li: the list of losiing side of items in the reformed WNet graph
+                  
 ranking_winner<-function(g,uid,ic,wi,li,damping=0.85){
   #g=set.vertex.attribute(g,name = "id",1:vcount(g),value = 1:vcount(g));
   #g=g-setdiff(g,which(degree(g)==0));
@@ -553,6 +300,12 @@ ranking_winner<-function(g,uid,ic,wi,li,damping=0.85){
     score[i]=(sum(p[wi[[i]]]));#-sum(p[li[[i]]]));#*(sum(p[li[[i]]])+sum(p[wi[[i]]]));
   return(score)
 }
+ #This fuction scores items based on their weighted similaity to the losing items of the target user
+  #g: reformed shape of LNet constructed by the abov functions 
+  #uid: the id of the target user
+  #wi: the list of winning side of items in the reformed LNet graph
+  #Li: the list of losiing side of items in the reformed LNet graph
+  
 ranking_looser<-function(g,uid,ic,wi,li,damping=0.85){
   #g=set.vertex.attribute(g,name = "id",1:vcount(g),value = 1:vcount(g));
   #g=g-setdiff(g,which(degree(g)==0));
@@ -575,14 +328,7 @@ makeTrList<-function(Rate,ic){
     sl=which(Rate[,1]==m[i]);
     if(length(sl)>0){
       iuser=Rate[sl,];
-      # print(c(i,"v",length(sl)))
-      #iuser2=iuser;
-      #iuser=iuser[,c(1,3,2,4)];
-      #print(i,sl,)
-      #iuser[,4]=-iuser[,4];
-      #iuser=rbind(as.matrix(iuser),as.matrix(iuser2));
-      #ll=which(iuser[,2]>iuser[,3])
-      #iuser[ll,]=ius
+      
       tr[[i]]=sparseMatrix(i=as.double(iuser[,2]),j=as.double(iuser[,3]),x=as.double(iuser[,4]),dims=c(ic,ic),use.last.ij = T);
       
       tr[[i]]=drop0(tr[[i]]);
